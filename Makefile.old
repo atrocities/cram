@@ -1,0 +1,12 @@
+SRCFILES = mem.c loader.c cpu.c opcode.c
+CFLAGS = -g -O2
+CC = gcc
+
+cram:
+	$(CC) $(CFLAGS) $(SRCFILES) -o cram
+	chmod +x cram
+
+clean:
+	rm -f *.o
+	rm -f cram
+

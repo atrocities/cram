@@ -1,0 +1,729 @@
+#include <string.h>
+#include <stdio.h>
+
+#define null NULL
+
+#include "cram.h"
+#include "mem.h"
+#include "loader.h"
+#include "sdlvideo.h"
+#include "video.h"
+#include "cpu.h"
+#include "mbc.h"
+#include "opcode.h"
+
+/*****************************************************
+/*	Memory mapping:
+/*	0000-3FFF	Bank 00
+/* 	4000-7FFF	Bank 01-NN (switchable bank)
+/*	8000-9FFF	VRAM
+/*	A000-BFFF	External RAM
+/*	C000-CFFF	WRAM1
+/*	D000-DFFF	WRAM2 (switchable in cgb)
+/*	E000-FDFF	ECHO - Same as C000-DDFF
+/*	FE00-FE9F	OAM
+/*	FEA0-FEFF	Not Usable
+/*	FF00-FF7F	I/O Ports
+/*	FF80-FFFE	HRAM
+/*	FFFF		Interrupt Enable Register
+/****************************************************/
+
+byte IEREG;
+byte* HRAM;
+byte* IOBUF;
+byte* VRAM;
+byte* ERAM;
+byte* WRAM1;
+byte* WRAM2;
+byte* OAM;
+
+byte* MEM;
+//SDL_Surface* tiles[0x180];
+SDL_Surface* tiles;
+byte jpbuf;
+byte (*mreader)();
+void (*mwriter)();
+
+int initMem2() {
+	int i;
+	HRAM = (byte*) malloc(sizeof(byte) * 0x7F);
+	if (HRAM == null)
+		return -1;
+	IOBUF = (byte*) malloc(sizeof(byte) * 0x80);
+	if (IOBUF == null)
+		return -1;
+	VRAM = (byte*) malloc(sizeof(byte) * 0x2000);
+	if (VRAM == null)
+		return -1;
+	for (i = 0; i < 0x2000; i++) {
+		VRAM[i] = 0;
+	}
+	ERAM = (byte*) malloc(sizeof(byte) * 0x8000);
+	if (ERAM == null)
+		return -1;
+	WRAM1 = (byte*) malloc(sizeof(byte) * 0x2000);
+	if (WRAM1 == null)
+		return -1;
+	for (i = 0; i < 0x2000; i++) 
+		WRAM1[i] = 0;
+	WRAM2 = (byte*) malloc(sizeof(byte) * 0x1000);
+	if (WRAM2 == null)
+		return -1;
+	for (i = 0; i < 0x1000; i++) 
+		WRAM2[i] = 0;
+	OAM = (byte*) malloc(sizeof(byte) * 0x100);
+	if (OAM == null)
+		return -1;
+	for (i = 0; i < 0x100; i++)
+		OAM[i] = 0;
+	tiles = SDL_CreateRGBSurface(SDL_SWSURFACE, 256, 256, 16, 0, 0, 0, 0);
+	jpbuf = 0xFF;
+	IOBUF[0] = 0xF;
+	rampage = 0;
+	rompage = 1;
+	mbcmode = 0;
+	ramenable = 0;
+	return 0;
+}
+
+int initMem() {
+        int i;
+        MEM = (byte*) malloc(sizeof(byte) * (0x10000));
+        //HRAM = (byte*) malloc(sizeof(byte) * 0x7F);
+        if (MEM == null)
+                return -1;
+        HRAM = MEM + 0xFF80;
+        IOBUF = MEM + 0xFF00;
+        VRAM = MEM + 0x8000;
+        for (i = 0; i < 0x2000; i++) {
+                VRAM[i] = 0;
+        }
+        ERAM = MEM + 0xA000;
+        //ERAM = (byte*) malloc(sizeof(byte) * 0x8000);
+        if (ERAM == null)
+                return -1;
+        WRAM1 = MEM + 0xC000;
+        for (i = 0; i < 0x2000; i++)
+                WRAM1[i] = 0;
+        OAM = MEM + 0xFE00;
+        for (i = 0; i < 0x100; i++)
+                OAM[i] = 0;
+        tiles = SDL_CreateRGBSurface(SDL_SWSURFACE, 256, 256, 16, 0, 0, 0, 0);
+        jpbuf = 0xFF;
+        IOBUF[0] = 0xF;
+        rampage = 0;
+        rompage = 1;
+        mbcmode = 0;
+        ramenable = 0;
+        return 0;
+}
+
+void resetJpButton(byte num) {
+	byte mask = 0x1 << num;
+	jpbuf = jpbuf | mask;
+	changeJpRegs();
+	fprintf(stderr, "JPbuf: %00X", jpbuf);
+	intRequest(5);
+}
+
+void setJpButton(byte num) {
+	byte mask = ~(0x1 << num);
+	jpbuf = jpbuf & mask;
+	fprintf(stderr, "JPbuf: %00X", jpbuf);
+	changeJpRegs();
+}
+
+void changeJpRegs() {
+	if (!jpDirections()) {
+		writejpReg(jpbuf >> 4);
+	} else if (!jpButtons()) {
+		writejpReg(jpbuf);
+	}
+}
+
+byte jpDirections() {
+	return ((IOBUF[0] >> 4) & 0x1);
+}
+
+byte jpButtons() {
+	return ((IOBUF[0] >> 5) & 0x1);
+}
+
+void writejpReg(byte inp) {
+	IOBUF[0] = (IOBUF[0] & 0xF0) | (inp & 0xF);
+	// TODO: check to make sure this is a KEY DOWN action
+}
+
+/*
+byte readbyte(word address) {
+	byte rval;
+	byte* buf = (byte*) malloc(sizeof(byte));
+	map(address, buf, 1, 'r');
+	rval = *buf;
+	free(buf);
+	return rval;
+}
+
+int writebyte(word address, byte val) {
+	int rval;
+	byte* buf = (byte*) malloc(sizeof(byte));
+	memcpy(buf, &val, 1);
+	rval = map(address, buf, 1, 'w');
+	free(buf);
+	return rval;
+}
+
+word readword(word address) {
+	word rval;
+	word* buf = (word*) malloc(sizeof(word));
+	map(address, buf, 2, 'r');
+	rval = *buf;
+	free(buf);
+	return rval;
+}
+
+int writeword(word address, word val) {
+	int rval;
+	word* buf = (word*) malloc(sizeof(word));
+	memcpy(buf, &val, 2);
+	rval = map(address, buf, 2, 'w');
+	free(buf);
+	return rval;
+}
+*/
+
+inline byte readbyte(word address) {
+	return fastmap(address, 0, 'r');
+}
+
+inline word readword(word address) {
+	//printf("reading word: %d\n", address);
+	return (fastmap(address, 0, 'r') | (fastmap(address + 1, 0, 'r') << 8));
+}
+
+inline int writebyte(word address, byte val) {
+	return fastmap(address, val, 'w');
+}
+
+inline int writeword(word address, word val) {
+	fastmap(address, (byte) (val & 0xFF), 'w');
+	return fastmap(address + 1, (byte) (val >> 8), 'w');
+}
+
+// Update updated tile in tile memory
+void writeTileMem(word address) {
+	int tilenum = address >> 4;
+	//fprintf(stderr, "Refreshing tile %0000X", address);
+	byte* tpointer = VRAM + (tilenum << 4);
+	int i, j;	
+
+	word* spix = tiles->pixels;
+	word sx = (tilenum & 0x0F) * 8;
+	word sy = ((tilenum & 0xFF0) >> 4) * 8;
+	word acc = (sy * 256) + sx;
+	for (i = 0; i < 16; i += 2) {
+		for (j = 0; j < 8; j += 1) {
+			byte color0 = ((tpointer[i] >> j) & 0x1);
+			byte color1 = ((tpointer[i+1] >> j) & 0x1);
+			byte color = color1 | (color0 << 1);
+			//pix[((i>>1) * 8) + (8-j)] = pal[color];
+			acc = ((sy + (i>>1)) * 256)  + sx + (8-j);
+			spix[acc] = pal[color];
+		}
+	}
+}
+
+void doDma(byte addrl) {
+	word address = addrl << 8;
+	map(address, OAM, 0x9F, 'r');
+	DMADELAY = 140;
+	//fprintf(stderr, "Doing a DMA transfer from %d\n", addrl);
+}
+
+
+/* 	Return values:
+	-1 : Unmappable address
+	-2 : Unable to write
+	-3 : Invalid rw code 
+	-4 : Unable to write to ROM
+	-5 : Unable to read from write only mem
+
+	VERY LITTLE CHECKING IS DONE IN THE MAPPER.
+	VERIFY DATA BEFORE WRITING!!
+*/
+int map(unsigned int address, byte* buffer, int length, char rw) {
+	//if (address == meml && rw == 'w')
+	//	dstate = 0;
+	if(mreader == null && address <= 0x7FFF) {
+		/* Rom Bank 1 */
+		if (address <= 0x3FFF && address >= 0x0000) {
+			if (rw == 'r') {
+				if (length == 1)
+					buffer[0] = ROM[address];
+				else
+					memcpy(buffer, ROM + address, length);
+				return 0;
+			}
+			if (rw == 'w') {
+				return -4;
+			}
+		}
+	
+		/* Rom Bank 2 */
+		/* TODO: Support MBC Banking */
+		if (address <= 0x7FFF && address >= 0x4000) {
+			if (rw == 'r') {
+				if (length == 1)
+					buffer[0] = ROM[address];
+				else
+					memcpy(buffer, ROM + address, length);
+			return 0;
+			}
+			if (rw == 'w') {
+				return -4;
+			}
+		}
+	} else if (address <= 0x7FFF) {
+		if (rw == 'r') {
+			buffer[0] = (*mreader)((word)address);
+			if (length == 2)
+				buffer[1] = (*mreader)((word)address+1);
+		}
+		else 
+			(*mwriter)((word)address, buffer[0], 1);
+		return 0;
+	}
+	/* Write to tile MAP mem */
+	if (address >= 0x8000 && address <= 0x9FFF) {
+		address -= 0x8000;
+		if (rw == 'r') {
+			if (length == 1)
+				buffer[0] = VRAM[address];
+			else
+				memcpy(buffer, VRAM + address, length);
+			return 0;
+		}
+		if (rw == 'w') {
+			if (length == 1)
+				VRAM[address] = buffer[0];
+			else
+				memcpy(VRAM + address, buffer, length);
+			if (address <= 0x17FF && address >= 0x0000) {
+				word taddress = address;
+				if (rw == 'w') {
+					writeTileMem(taddress);
+					return;
+				}
+			}
+			return 0;
+		}
+	}
+	
+	/* External RAM */
+	/* TODO: Implement RAM banking */
+	if (address <= 0xBFFF && address >= 0xA000) {
+		if (mwriter == null) {
+			address -= 0xA000;
+			if (rw == 'r') {
+				if (length == 1)
+					buffer[0] = ERAM[address];
+				else
+					memcpy(buffer, ERAM + address, length);
+				return 0;
+			}
+			if (rw == 'w') {
+				if (length == 1)
+					ERAM[address] = buffer[0];
+				else
+					memcpy(ERAM + address, buffer, length);
+				return 0;
+			}
+		} else {
+			int i;
+			if (rw == 'r') {
+				if (length == 1 || length == 2) {
+					buffer[0] = (*mreader)((word)address);
+					if (length == 2)
+						buffer[1] = (*mreader)((word)address+1);
+				} else
+					for(i = 0; i < length; i++) 
+						buffer[i] = (*mreader)((word)address+i);
+			}
+			else {
+				if (length == 1 || length == 2) {
+					(*mwriter)((word)address, buffer[0], 1);
+					if (length == 2)
+						(*mwriter)((word)address+1, buffer[1], 1);
+				}
+				else
+					for(i = 0; i < length; i++) 
+						(*mwriter)((word)address+i,buffer[i],1);
+			}
+			return 0;
+		}
+	}
+
+	/* Work RAM 0 */
+	if (address <= 0xDFFF && address >= 0xC000) {
+		address -= 0xC000;
+		if (rw == 'r') {
+			if (length == 1)
+				buffer[0] = WRAM1[address];
+			else
+				memcpy(buffer, WRAM1 + address, length);
+			return 0;
+		}
+		if (rw == 'w') {
+			if (length == 1)
+				WRAM1[address] = buffer[0];
+			else
+				memcpy(WRAM1 + address, buffer, length);
+			return 0;
+		}
+	}
+
+	/* Work RAM 1 
+	if (address <= 0xDFFF && address >= 0xD000) {
+		address -= 0xD000;
+		if (rw == 'r') {
+			if (length == 1)
+				buffer[0] = WRAM2[address];
+			else
+				memcpy(buffer, WRAM2 + address, length);
+			return 0;
+		}
+		if (rw == 'w') {
+			if (length == 1)
+				WRAM2[address] = buffer[0];
+			else
+				memcpy(WRAM2 + address, buffer, length);
+			return 0;
+		}
+	}*/
+	
+	/* Echo of C000-DDFF */
+	if (address <= 0xFDFF && address >= 0xE000) {	
+		address -= 0xE000;
+		if (rw == 'r') {
+			if (length == 1)
+				buffer[0] = WRAM1[address];
+			else
+				memcpy(buffer, WRAM1 + address, length);
+			return 0;
+		}
+		if (rw == 'w') {
+			if (length == 1)
+				WRAM1[address] = buffer[0];
+			else
+				memcpy(WRAM1 + address, buffer, length);
+			return 0;
+		}
+	}
+
+	/* OAM */
+	if (address <= 0xFE9F && address >= 0xFE00) {	
+		address -= 0xFE00;
+		if (rw == 'r') {
+			if (length == 1)
+				buffer[0] = OAM[address];
+			else
+				memcpy(buffer, OAM + address, length);
+			return 0;
+		}
+		if (rw == 'w') {
+			if (length == 1)
+				OAM[address] = buffer[0];
+			else
+				memcpy(OAM + address, buffer, length);
+			return 0;
+		}
+	}
+	
+	/* FEA0-FEFF is not usable */
+
+	/* I/O */
+	if (address <= 0xFF7F && address >= 0xFF00) {	
+		word taddress = address - 0xFF00;
+		if (rw == 'r') {
+			if (length == 1)
+				buffer[0] = IOBUF[taddress];
+			else
+				memcpy(buffer, IOBUF + taddress, length);
+			return 0;
+		}
+		if (rw == 'w') {
+			if (length == 1)
+				IOBUF[taddress] = buffer[0];
+			else
+				memcpy(IOBUF + taddress, buffer, length);
+			if (address == 0xFF46) {
+				doDma(buffer[0]);
+			}
+			else if (address == 0xFF00) {
+				changeJpRegs();
+			}
+			else if (address == 0xFF47) {
+				byte val = buffer[0];
+				bgp[0] = val & 0x3;
+				bgp[1] = (val >> 2) & 0x3;
+				bgp[2] = (val >> 4) & 0x3;
+				bgp[3] = (val >> 6) & 0x3;
+			}
+			else if (address == 0xFF48) {
+				byte val = buffer[0];
+				sgp1[0] = val & 0x3;
+				sgp1[1] = (val >> 2) & 0x3;
+				sgp1[2] = (val >> 4) & 0x3;
+				sgp1[3] = (val >> 6) & 0x3;
+			}
+			else if (address == 0xFF49) {
+				byte val = buffer[0];
+				sgp2[0] = val & 0x3;
+				sgp2[1] = (val >> 2) & 0x3;
+				sgp2[2] = (val >> 4) & 0x3;
+				sgp2[3] = (val >> 6) & 0x3;
+			}
+			return 0;
+		}
+	}
+
+	/* HRAM */
+	if (address <= 0xFFFF && address >= 0xFF80) {	
+		address -= 0xFF80;
+		if (rw == 'r') {
+			if (length == 1)
+				buffer[0] = HRAM[address];
+			else
+				memcpy(buffer, HRAM + address, length);
+			return 0;
+		}
+		if (rw == 'w') {
+			if (length == 1)
+				HRAM[address] = buffer[0];
+			else
+				memcpy(HRAM + address, buffer, length);
+			return 0;
+		}
+	}
+
+	/* Interrupt Enable Register 
+	if (address == 0xFFFF) {
+		if (rw = 'r') {
+			buffer[0] = IEREG;
+			return 0;
+		}
+		if (rw = 'w') {
+			IEREG = buffer[0];
+			return 0;
+		}
+	}*/
+
+	return -1;
+}
+
+inline word fastmap(word address, byte val, char rw) {
+	if (address <= 0x7FFF) {
+		if (mreader == null) {
+			return ROM[address];
+		} else {
+			if (rw == 'r')
+				return (*mreader)((word)address);
+			else {
+				(*mwriter)((word)address, val, 1);
+				return 0;
+			}
+		}
+	}
+	else if (address >= 0x8000 && address <= 0x9FFF) {
+		address -= 0x8000;
+		if (rw == 'r') {
+			return VRAM[address];
+		} else {
+			VRAM[address] = val;
+			if (address <= 0x17FF)
+				writeTileMem(address);
+			return 0;
+		}
+	}
+	else if (address <= 0xBFFF && address >= 0xA000) {
+		if (mwriter == null) {
+			address -= 0xA000;
+			if (rw == 'r')
+				return ERAM[address];
+			else {
+				ERAM[address] = val;
+				return 0;
+			}
+		} else {
+			if (rw == 'r')
+				return (*mreader)((word)address);
+			else {
+				(*mwriter)((word)address, val, 1);
+				return 0;
+			}
+		}
+		return 0;
+	}
+	else if (address <= 0xDFFF && address >= 0xC000) {
+		address -= 0xC000;
+		if (rw == 'r') 
+			return WRAM1[address];
+		else {
+			WRAM1[address] = val;
+			return 0;
+		}
+		return 0;
+	}
+	else if (address <= 0xFDFF && address >= 0xE000) {
+		address -= 0xE000;
+		if (rw == 'r') 
+			return WRAM1[address];
+		else {
+			WRAM1[address] = val;
+			return 0;
+		}
+		return 0;
+	}
+	else if (address <= 0xFE9F && address >= 0xFE00) {
+		address -= 0xFE00;
+		if (rw == 'r') {
+			return OAM[address];
+		} else {
+			OAM[address] = val;
+			return 0;
+		}
+		return 0;
+	}
+	else if (address <= 0xFF7F && address >= 0xFF00) {
+		word taddress = address - 0xFF00;
+		if (rw == 'r')
+			return IOBUF[taddress];
+		else {
+			IOBUF[taddress] = val;
+			if (address == 0xFF46)
+				doDma(val);
+			if (address == 0xFF00)
+				changeJpRegs();
+			if (address == 0xFF07) {
+				switch (val & 0x3) {
+					case 0:
+						ICS = 4096;
+						break;
+					case 1:
+						ICS = 262144;
+						break;
+					case 2:
+						ICS = 65536;
+						break;
+					case 3:
+						ICS = 16384;
+						break;
+				}
+				if (val >> 2) {
+					TENABLE = 1;
+				} else
+					TENABLE = 0;
+			}
+			return 0;
+		}
+		return 0;
+	}
+	else if (address <= 0xFFFF && address >= 0xFF80) {
+		address -= 0xFF80;
+		if (rw == 'r')
+			return HRAM[address];
+		else {
+			HRAM[address] = val;
+			return 0;
+		}
+	}
+}
+void writeByte(byte buf, FILE* desc) {
+	fwrite(&buf, sizeof(byte), 1, desc);
+}
+
+void writeWord(word buf, FILE* desc) {
+	fwrite(&buf, sizeof(word), 1, desc);
+}
+
+void readByte(byte *buf, FILE* desc) {
+	fread(buf, sizeof(byte), 1, desc);
+}
+
+void readWord(word *buf, FILE* desc) {
+	fread(buf, sizeof(word), 1, desc);
+}
+
+void saveState(char* filename) {
+	FILE* desc;
+	int i = 0;
+	byte buf;
+	desc = fopen(filename, "w");
+	if (desc == NULL) {
+		fprintf(stderr, "Problem opening file. State NOT saved.\n");
+		return;
+	}
+	for (i = 0; i <= 0xFFFF; i++) {
+		map(i, &buf, 1, 'r');
+		fwrite(&buf, sizeof(byte), 1, desc);
+	}
+	fwrite(ERAM, sizeof(byte), 0x8000, desc);
+	writeByte(OLDDIV, desc);
+	writeByte(IEMASTER, desc);
+	writeByte(IEMASTERR, desc);
+	writeByte(ICLK, desc);
+	writeByte(ICLKE, desc);
+	writeByte(read8r(RA), desc);
+	writeByte(read8r(RB), desc);
+	writeByte(read8r(RC), desc);
+	writeByte(read8r(RD), desc);
+	writeByte(read8r(RE), desc);
+	writeByte(read8r(RF), desc);
+	writeByte(read8r(RH), desc);
+	writeByte(read8r(RL), desc);
+	writeWord(read16r(SP), desc);
+	writeWord(read16r(PC), desc);
+	fclose(desc);
+}
+
+void loadState(char* filename) {
+	FILE* desc;
+	int i = 0;
+	byte buf;
+	word wbuf;
+	desc = fopen(filename, "r");
+	if (desc == NULL) {
+		fprintf(stderr, "Problem opening file. State NOT loaded.\n");
+		return;
+	}
+	for (i = 0; i <= 0xFFFF; i++) {
+		fread(&buf, sizeof(byte), 1, desc);
+		map(i, &buf, 1, 'w');
+	}
+	fread(ERAM, sizeof(byte), 0x8000, desc);
+	readByte(&OLDDIV, desc);
+	readByte(&IEMASTER, desc);
+	readByte(&IEMASTERR, desc);
+	readByte(&ICLK, desc);
+	readByte(&ICLKE, desc);
+	readByte(&buf, desc);
+	write8r(RA, buf);
+	readByte(&buf, desc);
+	write8r(RB, buf);
+	readByte(&buf, desc);
+	write8r(RC, buf);
+	readByte(&buf, desc);
+	write8r(RD, buf);
+	readByte(&buf, desc);
+	write8r(RE, buf);
+	readByte(&buf, desc);
+	write8r(RF, buf);
+	readByte(&buf, desc);
+	write8r(RH, buf);
+	readByte(&buf, desc);
+	write8r(RL, buf);
+	readWord(&wbuf, desc);
+	write16r(SP, wbuf);
+	readWord(&wbuf, desc);
+	write16r(PC, wbuf);
+}

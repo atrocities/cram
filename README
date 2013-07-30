@@ -1,0 +1,130 @@
+   ******  *******       **     ****     ****
+  **////**/**////**     ****   /**/**   **/**
+ **    // /**   /**    **//**  /**//** ** /**
+/**       /*******    **  //** /** //***  /**
+/**       /**///**   **********/**  //*   /**
+//**    **/**  //** /**//////**/**   /    /**
+ //****** /**   //**/**     /**/**        /**
+  //////  //     // //      // //         // 
+
+   A sub-par GB emulator with no optimization
+	     	Version 0.1
+
+    Coded by Yun "no middle initial" Zhou
+	      yzhou7@gmail.com
+	      Februrary, 2009
+
+===============================================
+Sections to this sub-par guide
+A. INTRODUCTION.
+B. BORING TECHNICAL CRAP
+C. HOW TO COMPILE CRAM
+D. HOW TO USE CRAM.
+	1. Screwing around with the debug "console"
+	2. Actually playing games
+	3. Saving and loading your game
+E. FAQ
+F. THE FUTURE OF CRAM
+G. ACKNOWLEDGEMENTS
+===============================================
+
+A. The introduction
+===================
+	Cram. Why is that the name of this emulator? Well, It's cuz I looked through the list of other GB emulators, and a good half of them are obviously crap. Some of them are missing sound or video, some of them can't play any commercial games because they're missing support for MBC's, and some of them are so rudimentary that they barely emulate a subset of the CPU, which is already a subset of a better CPU. I think it's kewl that people are publishing their work online, but I just couldn't understand why they gave such awesome names to programs that obviously don't work. Obviously, I'm not proud of this creation enough to give it an awesome name, so I settled on "cram", since it makes it slightly easier to "cram" GB carts into your computer. 
+
+	Here we are at the end of the 2nd month of 2009. It's now a functioning emulator capable of playing games. I only tested like a dozen, since I could care less about games I hate. There's still a lot of stuff missing, like sprite flipping and not drawing a white box around all the sprites, but hey, I never said this thing was perfect. 
+
+B. Boring technical crap
+========================
+
+	What WORKS
+		- No MBC roms, MBC1 roms, and MBC3 roms. 
+		- Three channels of sound (noise is still under development)
+		- Background + window graphics layers, Sprites
+		- Non-configurable Controls
+		- All documented opcodes
+
+	What DOESN't WORK
+		- Noise channel for sound, frequency shift for sound channel 1 
+		  (so boings and bloops sound like flat notes)
+	 	- Stereo sound. All sounds are fed to a mono stream. Easy fix for later. 
+		- Palleting. This is a huge one. I haven't figured out how to index colors in SDL, so the
+		  gray scales may seem a bit wrong. 
+		- Sprite transparency - This is pretty obvious. Just look at those white chunks. 
+		- MBC's 2, 4, 5, RTC Support for MBC3, and all those obscure MBC's that are
+		  used by like 2 games each. 
+		- Link support
+		- It's slow. That's something that doesn't work. 
+	
+	More technical stuff
+		- Main function is in loader.c . It loads the rom up and calls the main event loop
+		- Main event loop is in sdlvideo.c . Yeah, weird place, but SDL does the input and output handling, so this was just natch. 
+		- CPU stepping is in cpu.c, function step(). It does timing and calls decode() to run the actual instructions.
+		- Video timing and control is in video.c
+		- Sound timing and control. I'll give you three guesses. 
+		- Opcode mapping and implementation is in opcode.c
+		- Memory mapping and the half-assed optimizations relating to it are in mem.c
+		- MBC's are implemented in mbc.c . They're mapped out in loader.c, and invoked in mem.c
+		- Video is updated every clock cycle. Sound is updated every 95 clock cycles. In real time, that would be around 44Khz. 
+		- It really needs a configuration file. There's too much hardcoded crap right now. 
+
+
+C. How to compile cram
+======================
+
+cd into cram, and do a ./configure then a make. It should work fine on osx, but it needs a slight tweak for Linux. One of the header files needs its name capatalized. I'm not sure how to compile this on windows since I haven't tried yet. 
+
+There's no make install, so you gotta copy the cram binary yourself. Hey, you aren't that lazy, right?
+
+D. How to use cram
+==================
+1. Screwing around with the debug console
+
+	The "debug" console is the remnant from early stages of development, when video wasn't available yet. I left it in there so you can set breakpoints, dump memory, along with some other stuff. 
+	- 's' - step one instruction
+	- 'b' - prompts for a new breakpoint
+	- 'r' - resume operation in current debug state 
+	- 't' - tape buttons to a certain value for the next instruction. Helpful if you ever need to set the input state to a certain value to debug something.
+	- 'l' - breaks when a certain memory location is written to
+	- 'd' - dumps memory
+	- 'm' - look at a single byte in memory
+	- 'save' - saves state
+	- 'load' - loads state
+	- 'debugon' - lets you see every instruction that's being executed. Will cause emulator to slow to a crawl
+	- 'debugoff' - you need to put it in this mode for it to be playable. 
+
+	Pressing 'esc' in the cram graphics window will pause emulation and drop you to debug mode, where you can save and load states. Press ctrl+c to exit. 
+	Yeah, I know it's half assed, but hey this thing is still being developed. 
+
+2. Playing games
+	
+	After you load a game by specifing the rom name on invocation, you can play it by typing 'debugoff'. This turns off displaying everything the emulated CPU is doing so you can focus on the game. If the game should ever freeze, it probably encountered a breakpoint. Set l or b to some other value. 
+
+	The controls are
+	A - ctrl
+	B - alt or windows key, depending on your keyboard
+	START - enter
+	SELECT - right shift
+	UP/DOWN/LEFT/RIGHT - arrow keys
+
+3. Saving and loading
+
+	You can save and load state by pressing 'esc' in the cram window and using the save and load commands in the debug terminal. Keep in mind that saving of battery backed ram is NOT supported, so save those states religiously. 
+
+	Battery backed sram will be implemented later. 
+
+E. FAQ
+======
+
+1. Q: Why do the graphics look so bad? 
+   A: Well, it might have something to do with the fact that I'm not using any palletes, the sprites have no transparency, and the sprites can't "hide" behind background objects. This was so that I could simply blit everything on the SDL screen and forget about it. Drawing graphics based on scanlines (like they're supposed to be) is forthcoming. 
+
+2. Q: Why does the audio sound weird?
+   A: That's not supposed to happen. Please e-mail me about the glitch. For all I know, the audio should be PERFECT. By that I mean up to my standards, which are exceedingly low. 
+
+3. Q: Are there any shortcut keys to save and load state.
+   A: No. 
+
+4. Q: Why is cram creating a file called 'sdump.wav' in my directory, which looks like a blank wav file?
+   A: This was made for sound testing and I forgot to take it out. Press 'd' in the cram window if you want to dump the audio to this file, otherwise it'll just be blank. 
+
