@@ -38,10 +38,10 @@ pkglibdir = $(libdir)/cram
 pkgincludedir = $(includedir)/cram
 top_builddir = .
 
-ACLOCAL = ${SHELL} /home/yzhou/dev/cram/missing --run aclocal-1.6
-AUTOCONF = ${SHELL} /home/yzhou/dev/cram/missing --run autoconf
-AUTOMAKE = ${SHELL} /home/yzhou/dev/cram/missing --run automake-1.6
-AUTOHEADER = ${SHELL} /home/yzhou/dev/cram/missing --run autoheader
+ACLOCAL = ${SHELL} /Users/yzhou/ssd/cram/missing --run aclocal-1.6
+AUTOCONF = ${SHELL} /Users/yzhou/ssd/cram/missing --run autoconf
+AUTOMAKE = ${SHELL} /Users/yzhou/ssd/cram/missing --run automake-1.6
+AUTOHEADER = ${SHELL} /Users/yzhou/ssd/cram/missing --run autoheader
 
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 INSTALL = /usr/bin/install -c
@@ -63,20 +63,20 @@ POST_UNINSTALL = :
 EXEEXT = 
 OBJEXT = o
 PATH_SEPARATOR = :
-AMTAR = ${SHELL} /home/yzhou/dev/cram/missing --run tar
-AWK = gawk
+AMTAR = ${SHELL} /Users/yzhou/ssd/cram/missing --run tar
+AWK = awk
 CC = gcc
 DEPDIR = .deps
 INSTALL_STRIP_PROGRAM = ${SHELL} $(install_sh) -c -s
 PACKAGE = cram
-SDL_CFLAGS = -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT
-SDL_CONFIG = /usr/bin/sdl-config
-SDL_LIBS = -lSDL -lpthread
+SDL_CFLAGS = -I/usr/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE
+SDL_CONFIG = /usr/local/bin/sdl-config
+SDL_LIBS = -L/usr/local/lib -lSDLmain -lSDL -Wl,-framework,Cocoa
 STRIP = 
 VERSION = 0.1
 am__include = include
 am__quote = 
-install_sh = /home/yzhou/dev/cram/install-sh
+install_sh = /Users/yzhou/ssd/cram/install-sh
 SUBDIRS = src
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4

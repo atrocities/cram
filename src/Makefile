@@ -38,10 +38,10 @@ pkglibdir = $(libdir)/cram
 pkgincludedir = $(includedir)/cram
 top_builddir = ..
 
-ACLOCAL = ${SHELL} /home/yzhou/dev/cram/missing --run aclocal-1.6
-AUTOCONF = ${SHELL} /home/yzhou/dev/cram/missing --run autoconf
-AUTOMAKE = ${SHELL} /home/yzhou/dev/cram/missing --run automake-1.6
-AUTOHEADER = ${SHELL} /home/yzhou/dev/cram/missing --run autoheader
+ACLOCAL = ${SHELL} /Users/yzhou/ssd/cram/missing --run aclocal-1.6
+AUTOCONF = ${SHELL} /Users/yzhou/ssd/cram/missing --run autoconf
+AUTOMAKE = ${SHELL} /Users/yzhou/ssd/cram/missing --run automake-1.6
+AUTOHEADER = ${SHELL} /Users/yzhou/ssd/cram/missing --run autoheader
 
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 INSTALL = /usr/bin/install -c
@@ -63,20 +63,20 @@ POST_UNINSTALL = :
 EXEEXT = 
 OBJEXT = o
 PATH_SEPARATOR = :
-AMTAR = ${SHELL} /home/yzhou/dev/cram/missing --run tar
-AWK = gawk
+AMTAR = ${SHELL} /Users/yzhou/ssd/cram/missing --run tar
+AWK = awk
 CC = gcc
 DEPDIR = .deps
 INSTALL_STRIP_PROGRAM = ${SHELL} $(install_sh) -c -s
 PACKAGE = cram
-SDL_CFLAGS = -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT
-SDL_CONFIG = /usr/bin/sdl-config
-SDL_LIBS = -lSDL -lpthread
+SDL_CFLAGS = -I/usr/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE
+SDL_CONFIG = /usr/local/bin/sdl-config
+SDL_LIBS = -L/usr/local/lib -lSDLmain -lSDL -Wl,-framework,Cocoa
 STRIP = 
 VERSION = 0.1
 am__include = include
 am__quote = 
-install_sh = /home/yzhou/dev/cram/install-sh
+install_sh = /Users/yzhou/ssd/cram/install-sh
 cramprgdir = ../
 cramprg_PROGRAMS = cram
 cram_SOURCES = cpu.c loader.c mem.c opcode.c video.c sdlvideo.c mbc.c sound.c
@@ -99,7 +99,7 @@ DEFS = -DHAVE_CONFIG_H
 DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)
 CPPFLAGS = 
 LDFLAGS = 
-LIBS =  -lSDL -lpthread
+LIBS =  -L/usr/local/lib -lSDLmain -lSDL -Wl,-framework,Cocoa
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 DEP_FILES = ./$(DEPDIR)/cpu.Po ./$(DEPDIR)/loader.Po \
@@ -110,7 +110,7 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-CFLAGS = -g -O2 -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT -lSDL_ttf
+CFLAGS = -g -O2 -I/usr/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE 
 DIST_SOURCES = $(cram_SOURCES)
 DIST_COMMON = Makefile.am Makefile.in
 SOURCES = $(cram_SOURCES)

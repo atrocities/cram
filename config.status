@@ -479,29 +479,29 @@ s,@build_alias@,,;t t
 s,@host_alias@,,;t t
 s,@target_alias@,,;t t
 s,@DEFS@,-DHAVE_CONFIG_H,;t t
-s,@ECHO_C@,,;t t
-s,@ECHO_N@,-n,;t t
+s,@ECHO_C@,\c,;t t
+s,@ECHO_N@,,;t t
 s,@ECHO_T@,,;t t
-s,@LIBS@, -lSDL -lpthread,;t t
+s,@LIBS@, -L/usr/local/lib -lSDLmain -lSDL -Wl,-framework,Cocoa,;t t
 s,@INSTALL_PROGRAM@,${INSTALL},;t t
 s,@INSTALL_SCRIPT@,${INSTALL},;t t
 s,@INSTALL_DATA@,${INSTALL} -m 644,;t t
 s,@PACKAGE@,cram,;t t
 s,@VERSION@,0.1,;t t
-s,@ACLOCAL@,${SHELL} /home/yzhou/dev/cram/missing --run aclocal-1.6,;t t
-s,@AUTOCONF@,${SHELL} /home/yzhou/dev/cram/missing --run autoconf,;t t
-s,@AUTOMAKE@,${SHELL} /home/yzhou/dev/cram/missing --run automake-1.6,;t t
-s,@AUTOHEADER@,${SHELL} /home/yzhou/dev/cram/missing --run autoheader,;t t
-s,@MAKEINFO@,${SHELL} /home/yzhou/dev/cram/missing --run makeinfo,;t t
-s,@AMTAR@,${SHELL} /home/yzhou/dev/cram/missing --run tar,;t t
-s,@install_sh@,/home/yzhou/dev/cram/install-sh,;t t
+s,@ACLOCAL@,${SHELL} /Users/yzhou/ssd/cram/missing --run aclocal-1.6,;t t
+s,@AUTOCONF@,${SHELL} /Users/yzhou/ssd/cram/missing --run autoconf,;t t
+s,@AUTOMAKE@,${SHELL} /Users/yzhou/ssd/cram/missing --run automake-1.6,;t t
+s,@AUTOHEADER@,${SHELL} /Users/yzhou/ssd/cram/missing --run autoheader,;t t
+s,@MAKEINFO@,${SHELL} /Users/yzhou/ssd/cram/missing --run makeinfo,;t t
+s,@AMTAR@,${SHELL} /Users/yzhou/ssd/cram/missing --run tar,;t t
+s,@install_sh@,/Users/yzhou/ssd/cram/install-sh,;t t
 s,@STRIP@,,;t t
 s,@ac_ct_STRIP@,,;t t
 s,@INSTALL_STRIP_PROGRAM@,${SHELL} $(install_sh) -c -s,;t t
-s,@AWK@,gawk,;t t
+s,@AWK@,awk,;t t
 s,@SET_MAKE@,,;t t
 s,@CC@,gcc,;t t
-s,@CFLAGS@,-g -O2 -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT -lSDL_ttf,;t t
+s,@CFLAGS@,-g -O2 -I/usr/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE -lSDL_ttf,;t t
 s,@LDFLAGS@,,;t t
 s,@CPPFLAGS@,,;t t
 s,@ac_ct_CC@,gcc,;t t
@@ -514,9 +514,9 @@ s,@AMDEP_TRUE@,,;t t
 s,@AMDEP_FALSE@,#,;t t
 s,@AMDEPBACKSLASH@,\,;t t
 s,@CCDEPMODE@,depmode=gcc3,;t t
-s,@SDL_CONFIG@,/usr/bin/sdl-config,;t t
-s,@SDL_CFLAGS@,-I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT,;t t
-s,@SDL_LIBS@,-lSDL -lpthread,;t t
+s,@SDL_CONFIG@,/usr/local/bin/sdl-config,;t t
+s,@SDL_CFLAGS@,-I/usr/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE,;t t
+s,@SDL_LIBS@,-L/usr/local/lib -lSDLmain -lSDL -Wl,-framework,Cocoa,;t t
 s,@CPP@,gcc -E,;t t
 s,@EGREP@,grep -E,;t t
 s,@LIBOBJS@, malloc$U.o,;t t
